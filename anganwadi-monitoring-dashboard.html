@@ -1,0 +1,409 @@
+<!DOCTYPE html>
+<html lang="en" data-theme="light">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Anganwadi Monitoring Dashboard</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+  <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.1/dist/chart.umd.min.js"></script>
+  <style>
+    :root {
+      --text-xs: clamp(0.75rem, 0.7rem + 0.25vw, 0.875rem);
+      --text-sm: clamp(0.875rem, 0.8rem + 0.35vw, 1rem);
+      --text-base: clamp(1rem, 0.95rem + 0.25vw, 1.05rem);
+      --text-lg: clamp(1.125rem, 1rem + 0.75vw, 1.35rem);
+      --text-xl: clamp(1.4rem, 1.2rem + 1vw, 2rem);
+      --space-1: .25rem; --space-2: .5rem; --space-3: .75rem; --space-4: 1rem; --space-5: 1.25rem; --space-6: 1.5rem; --space-8: 2rem; --space-10: 2.5rem; --space-12: 3rem;
+      --bg: #f4f8fb; --surface: #ffffff; --surface-2: #eef5f7; --border: #d8e4ea; --text: #173042; --muted: #5a7383;
+      --primary: #1f6aa5; --primary-2: #2e8b8b; --success: #2e7d32; --warning: #b26b00; --danger: #c62828; --danger-bg: #fdecec; --ok-bg: #ecf8ef;
+      --shadow: 0 8px 24px rgba(16, 53, 79, 0.08); --radius: 18px; --radius-sm: 12px;
+      --font: 'Inter', sans-serif;
+    }
+    * { box-sizing: border-box; }
+    body { margin: 0; font-family: var(--font); background: linear-gradient(180deg,#f7fbfd 0%, #eef5f7 100%); color: var(--text); }
+    .app { max-width: 1440px; margin: 0 auto; padding: var(--space-6); }
+    .header { display:flex; align-items:center; justify-content:space-between; gap:var(--space-4); margin-bottom: var(--space-6); flex-wrap: wrap; }
+    .brand { display:flex; align-items:center; gap: var(--space-4); }
+    .logo { width: 52px; height: 52px; border-radius: 16px; display:grid; place-items:center; background: linear-gradient(135deg, #1f6aa5, #2e8b8b); color: white; box-shadow: var(--shadow); }
+    .logo svg { width: 30px; height: 30px; }
+    h1 { margin:0; font-size: var(--text-xl); line-height: 1.1; }
+    .sub { margin-top: .35rem; color: var(--muted); font-size: var(--text-sm); }
+    .filters { display:grid; grid-template-columns: repeat(3, minmax(180px, 1fr)); gap: var(--space-4); width: min(760px, 100%); }
+    .filter, .card, .chart-card, .table-card { background: rgba(255,255,255,.92); backdrop-filter: blur(6px); border:1px solid var(--border); border-radius: var(--radius); box-shadow: var(--shadow); }
+    .filter { padding: var(--space-4); }
+    .filter label { display:block; font-size: var(--text-xs); color: var(--muted); margin-bottom: .35rem; font-weight: 700; text-transform: uppercase; letter-spacing: .04em; }
+    select { width:100%; padding:.8rem .95rem; border-radius: 12px; border:1px solid var(--border); background:#fff; font: inherit; color: var(--text); }
+    .grid-kpi { display:grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: var(--space-4); margin-bottom: var(--space-6); }
+    .card { padding: var(--space-5); position: relative; overflow: hidden; }
+    .card::after { content:''; position:absolute; inset:auto -20px -20px auto; width:88px; height:88px; border-radius:50%; background: radial-gradient(circle, rgba(46,139,139,.12), transparent 68%); }
+    .kpi-label { font-size: var(--text-xs); text-transform: uppercase; letter-spacing: .06em; color: var(--muted); font-weight: 800; }
+    .kpi-value { margin-top: .5rem; font-size: clamp(1.9rem, 1.4rem + 1.8vw, 2.8rem); font-weight: 800; }
+    .kpi-note { margin-top: .35rem; color: var(--muted); font-size: var(--text-sm); }
+    .section-grid { display:grid; grid-template-columns: 1.2fr 1fr; gap: var(--space-4); margin-bottom: var(--space-6); }
+    .chart-card, .table-card { padding: var(--space-5); }
+    .chart-head, .table-head { display:flex; align-items:center; justify-content:space-between; gap:var(--space-3); margin-bottom: var(--space-4); }
+    h2 { margin:0; font-size: var(--text-lg); }
+    .hint { color: var(--muted); font-size: var(--text-sm); }
+    .chart-wrap { position: relative; height: 320px; }
+    .chart-wrap.tall { height: 360px; }
+    .bottom-grid { display:grid; grid-template-columns: 1.15fr .85fr; gap: var(--space-4); }
+    table { width:100%; border-collapse: collapse; }
+    th, td { padding: .85rem .75rem; border-bottom:1px solid #e7eef2; text-align:left; vertical-align: top; font-size: .93rem; }
+    th { color: var(--muted); font-size: .78rem; text-transform: uppercase; letter-spacing: .05em; }
+    tbody tr:hover { background: #f8fbfc; }
+    .pill { display:inline-flex; align-items:center; gap:.35rem; padding: .28rem .55rem; border-radius:999px; font-size:.76rem; font-weight:700; }
+    .yes { background: var(--ok-bg); color: var(--success); }
+    .no, .critical { background: var(--danger-bg); color: var(--danger); }
+    .warn { background: #fff5e6; color: var(--warning); }
+    .metrics-list { display:grid; gap: .8rem; }
+    .metric-row { display:flex; justify-content:space-between; gap:var(--space-3); padding:.9rem 1rem; border:1px solid var(--border); border-radius: 14px; background: linear-gradient(180deg,#fff,#f7fbfd); }
+    .metric-row strong { font-size: 1.05rem; }
+    .remark { max-width: 280px; color: var(--muted); }
+    .footer-note { margin-top: var(--space-5); color: var(--muted); font-size: var(--text-sm); }
+    @media (max-width: 1100px){ .grid-kpi{grid-template-columns: repeat(2,1fr);} .section-grid,.bottom-grid{grid-template-columns:1fr;} }
+    @media (max-width: 760px){ .app{padding: var(--space-4);} .filters{grid-template-columns:1fr;} .grid-kpi{grid-template-columns:1fr;} .chart-wrap,.chart-wrap.tall{height:280px;} .header{align-items:flex-start;} }
+  </style>
+</head>
+<body>
+  <div class="app">
+    <header class="header">
+      <div class="brand">
+        <div class="logo" aria-label="dashboard logo">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+            <path d="M4 18h16"></path><path d="M6 18V9"></path><path d="M12 18V6"></path><path d="M18 18v-4"></path><path d="M3 6c3-3 6-3 9 0 3-3 6-3 9 0"></path>
+          </svg>
+        </div>
+        <div>
+          <h1>Anganwadi Monitoring Dashboard</h1>
+          <div class="sub">Executive dashboard for readiness, hygiene and infrastructure tracking across surveyed centres.</div>
+        </div>
+      </div>
+      <div class="filters">
+        <div class="filter">
+          <label for="tehsilFilter">Tehsil / Sub Division</label>
+          <select id="tehsilFilter"></select>
+        </div>
+        <div class="filter">
+          <label for="whitewashFilter">Whitewash Status</label>
+          <select id="whitewashFilter"></select>
+        </div>
+        <div class="filter">
+          <label for="capacityFilter">Capacity Flag</label>
+          <select id="capacityFilter"></select>
+        </div>
+      </div>
+    </header>
+
+    <section class="grid-kpi">
+      <article class="card"><div class="kpi-label">Total Centres Surveyed</div><div class="kpi-value" id="kpiTotal">0</div><div class="kpi-note" id="kpiCoverage">Filtered records in current view</div></article>
+      <article class="card"><div class="kpi-label">Hygiene Index</div><div class="kpi-value" id="kpiHygiene">0%</div><div class="kpi-note">Centres marked clean</div></article>
+      <article class="card"><div class="kpi-label">Water Safety Rate</div><div class="kpi-value" id="kpiWater">0%</div><div class="kpi-note">Safe drinking water available</div></article>
+      <article class="card"><div class="kpi-label">Branding Compliance</div><div class="kpi-value" id="kpiBranding">0%</div><div class="kpi-note">Scheme banners/posters available</div></article>
+    </section>
+
+    <section class="section-grid">
+      <div class="chart-card">
+        <div class="chart-head"><h2>Tehsil-Level Performance</h2><div class="hint">Centre count by administrative unit</div></div>
+        <div class="chart-wrap"><canvas id="tehsilChart"></canvas></div>
+      </div>
+      <div class="chart-card">
+        <div class="chart-head"><h2>Whitewash Allocation View</h2><div class="hint">Done vs needs whitewash by tehsil</div></div>
+        <div class="chart-wrap"><canvas id="whitewashChart"></canvas></div>
+      </div>
+    </section>
+
+    <section class="section-grid">
+      <div class="chart-card">
+        <div class="chart-head"><h2>Seating Capacity Distribution</h2><div class="hint">Chair availability per centre</div></div>
+        <div class="chart-wrap tall"><canvas id="seatingChart"></canvas></div>
+      </div>
+      <div class="chart-card">
+        <div class="chart-head"><h2>Registration Readiness</h2><div class="hint">Table + safe water combined readiness</div></div>
+        <div class="chart-wrap tall"><canvas id="readinessChart"></canvas></div>
+        <div class="footer-note" id="capacitySummary"></div>
+      </div>
+    </section>
+
+    <section class="bottom-grid">
+      <div class="table-card">
+        <div class="table-head"><h2>Critical Intervention Needed</h2><div class="hint">Water unavailable or premises not clean</div></div>
+        <div style="overflow:auto; max-height: 420px;">
+          <table>
+            <thead>
+              <tr>
+                <th>Centre</th>
+                <th>Tehsil</th>
+                <th>Premises</th>
+                <th>Water</th>
+                <th>Whitewash</th>
+                <th>Remarks</th>
+              </tr>
+            </thead>
+            <tbody id="criticalTable"></tbody>
+          </table>
+        </div>
+      </div>
+      <div class="table-card">
+        <div class="table-head"><h2>Action Summary</h2><div class="hint">Priority signals from the filtered view</div></div>
+        <div class="metrics-list" id="actionSummary"></div>
+      </div>
+    </section>
+  </div>
+
+  <script>
+    const rawData = [
+      ["Khanna","BAGHAUR","No","Needs Whitewash",4,"Yes","Yes","No","No",""],
+      ["Khanna","CHAKOHI 1","No","Whitewash Not Needed",8,"Yes","Yes","No","No",""],
+      ["Khanna","CHAKOHI 2","No","Needs Whitewash",2,"No","Yes","No","No",""],
+      ["Khanna","GAZIPUR","No","Whitewash Not Needed",8,"No","Yes","No","No",""],
+      ["Khanna","IKOLAHA 1","Yes","Needs Whitewash",4,"No","No","No","No",""],
+      ["Khanna","IKOLAHA 2","No","Needs Whitewash",4,"No","No","No","No",""],
+      ["Khanna","IKOLAHA 3","Yes","Needs Whitewash",11,"Yes","Yes","No","No",""],
+      ["Khanna","IKOLAHI 1","No","Needs Whitewash",3,"Yes","No","No","No",""],
+      ["Khanna","IKOLAHI 2","No","Needs Whitewash",5,"Yes","No","No","No",""],
+      ["Khanna","IKOLAHI 3","No","Needs Whitewash",5,"No","No","No","No",""],
+      ["Khanna","KHATRA 1","No","Needs Whitewash",4,"Yes","Yes","No","No",""],
+      ["Khanna","KHATRA 2","Yes","Needs Whitewash",0,"No","Yes","No","No",""],
+      ["Khanna","MAJRI","No","Needs Whitewash",5,"Yes","Yes","No","No",""],
+      ["Khanna","NARAINGARH","No","Needs Whitewash",1,"No","Yes","No","No",""],
+      ["Khanna","RAJEWAL 1","Yes","Needs Whitewash",4,"Yes","No","No","No",""],
+      ["Khanna","RAJEWAL 2","Yes","Needs Whitewash",3,"Yes","No","No","No",""],
+      ["Khanna","RASOOLRA 1","No","Needs Whitewash",4,"Yes","Yes","No","No",""],
+      ["Khanna","RASOOLRA 2","No","Needs Whitewash",3,"Yes","Yes","No","No",""],
+      ["Khanna","ROHNO KALAN 1","No","Needs Whitewash",6,"Yes","Yes","No","No",""],
+      ["Khanna","ROHNO KALAN 2","No","Needs Whitewash",4,"No","Yes","No","No",""],
+      ["Khanna","ROHNO KHURD","No","Needs Whitewash",5,"No","Yes","No","No",""],
+      ["Khanna","khanna khurd 1","No","Needs Whitewash",2,"Yes","No","No","No",""],
+      ["Khanna","khanna khurd 2","Yes","Whitewash Not Needed",4,"Yes","Yes","No","No",""],
+      ["Khanna","ward no 21 (1)","Yes","Needs Whitewash",2,"Yes","Yes","No","No",""],
+      ["Khanna","ward no 21 (2)","Yes","Whitewash Not Needed",1,"Yes","Yes","No","No",""],
+      ["Khanna","ward no 25 (1)","No","Whitewash Not Needed",4,"Yes","Yes","No","No",""],
+      ["Khanna","ward no 25 (2)","No","Whitewash Not Needed",4,"No","Yes","No","No",""],
+      ["Khanna","BIJAPUR KOTHE","Yes","Whitewash Not Needed",4,"Yes","Yes","No","No",""],
+      ["Khanna","FAIZGARH","Yes","Needs Whitewash",11,"Yes","Yes","No","No",""],
+      ["Khanna","FATEHPUR MINI","Yes","Needs Whitewash",2,"No","No","No","No",""],
+      ["Khanna","ISSRU 1","Yes","Whitewash Not Needed",11,"Yes","Yes","No","No",""],
+      ["Khanna","ISSRU 2","Yes","Needs Whitewash",3,"Yes","Yes","No","No",""],
+      ["Khanna","ISSRU 3","No","Needs Whitewash",5,"Yes","Yes","No","No",""],
+      ["Khanna","ISSRU 4","Yes","Whitewash Not Needed",5,"Yes","No","No","No",""],
+      ["Khanna","KAMMA","Yes","Whitewash Not Needed",16,"Yes","Yes","No","No",""],
+      ["Khanna","ISSRU KHURD MINI","Yes","Needs Whitewash",4,"Yes","Yes","No","No",""],
+      ["Khanna","KOTLA DHAKK","Yes","Needs Whitewash",8,"Yes","No","No","No",""],
+      ["Khanna","NASRALI 1","Yes","Whitewash Not Needed",10,"Yes","Yes","No","No",""],
+      ["Khanna","NASRALI 2","Yes","Whitewash Not Needed",4,"Yes","Yes","No","No",""],
+      ["Khanna","NASRALI 3","Yes","Needs Whitewash",4,"Yes","Yes","No","No",""],
+      ["Khanna","Ghurala","Yes","Needs Whitewash",5,"Yes","Yes","No","No",""],
+      ["Khanna","cheema 1","Yes","Needs Whitewash",2,"Yes","Yes","No","No",""],
+      ["Khanna","cheema 2","Yes","Needs Whitewash",4,"Yes","No","No","No",""],
+      ["Khanna","karodiana","Yes","Needs Whitewash",3,"Yes","Yes","No","No",""],
+      ["Khanna","Aloona Tola","No","Needs Whitewash",3,"Yes","Yes","No","No",""],
+      ["Khanna","Alooma Miana","No","Needs Whitewash",5,"Yes","No","No","No",""],
+      ["Khanna","Aloona Pallah 1","No","Whitewash Not Needed",1,"Yes","No","No","No",""],
+      ["Khanna","Aloona Pallah 2","No","Whitewash Not Needed",3,"Yes","Yes","No","No",""],
+      ["Khanna","Deeva Mander","No","Whitewash Not Needed",5,"Yes","No","No","No",""],
+      ["Khanna","Deeva Khosa","No","Needs Whitewash",5,"No","No","No","No",""],
+      ["Khanna","ASGHARIPUR MINI","Yes","Needs Whitewash",3,"Yes","Yes","No","No",""],
+      ["Khanna","BAHOMAJRA","Yes","Needs Whitewash",2,"Yes","Yes","No","No",""],
+      ["Khanna","BHAMADDI 3","Yes","Needs Whitewash",4,"No","Yes","No","No",""],
+      ["Khanna","BHAMADDI 1","No","Whitewash Not Needed",0,"Yes","Yes","No","No",""],
+      ["Khanna","BHAMADDI 2","No","Needs Whitewash",4,"Yes","Yes","No","No",""],
+      ["Khanna","BIJA 1","Yes","Needs Whitewash",4,"Yes","","No","No",""],
+      ["Khanna","BIJA 2","Yes","Needs Whitewash",1,"Yes","Yes","No","No",""],
+      ["Khanna","CHAK SARAI","No","Needs Whitewash",0,"No","Yes","No","No",""],
+      ["Khanna","DEHRU 3","Yes","Needs Whitewash",0,"Yes","No","No","No",""],
+      ["Khanna","DEHRU 1","Yes","Needs Whitewash",6,"No","Yes","No","No",""],
+      ["Khanna","DEHRU 2","Yes","Needs Whitewash",0,"No","Yes","No","No",""],
+      ["Khanna","GAGGARMAJRA","Yes","Needs Whitewash",0,"No","Yes","No","No",""],
+      ["Khanna","GANDHUAN","Yes","Needs Whitewash",1,"Yes","Yes","No","No",""],
+      ["Khanna","GHUNGRALI RAJPUTAN 1","No","Needs Whitewash",1,"Yes","Yes","No","No",""],
+      ["Khanna","GHUNGRALI RAJPUTAN 2","No","Needs Whitewash",1,"No","Yes","No","No",""],
+      ["Khanna","JASPALON 1","Yes","Needs Whitewash",4,"No","Yes","No","No",""],
+      ["Khanna","JASPALON 2","Yes","Needs Whitewash",5,"No","Yes","No","No",""],
+      ["Khanna","JATANA 1","Yes","Needs Whitewash",2,"No","Yes","No","No",""],
+      ["Khanna","JATANA 2","Yes","Needs Whitewash",2,"No","Yes","No","No",""],
+      ["Khanna","JATANA 3","Yes","Needs Whitewash",2,"No","Yes","No","No",""],
+      ["Khanna","KAURI 1","Yes","Needs Whitewash",4,"Yes","Yes","No","No",""],
+      ["Khanna","KAURI 3","Yes","Needs Whitewash",4,"Yes","Yes","No","No",""],
+      ["Khanna","KAURI 2","Yes","Needs Whitewash",4,"Yes","Yes","No","No",""],
+      ["Khanna","KISHANGARH","Yes","Needs Whitewash",8,"Yes","Yes","No","No",""],
+      ["Khanna","KOT PANAICH","No","Whitewash Not Needed",1,"No","Yes","No","No",""],
+      ["Khanna","KOT SEKHON","Yes","Needs Whitewash",0,"No","Yes","No","No",""],
+      ["Khanna","LIBRA 1","Yes","Needs Whitewash",0,"Yes","Yes","No","No",""],
+      ["Khanna","LIBRA 2","Yes","Needs Whitewash",0,"Yes","Yes","No","No",""],
+      ["Khanna","MANDIALA KALAN","Yes","Whitewash Not Needed",0,"Yes","Yes","No","No",""],
+      ["Khanna","MANDIALA KALAN","Yes","Whitewash Not Needed",0,"No","Yes","No","No",""],
+      ["Khanna","MEHNDIPUR","Yes","Needs Whitewash",1,"No","Yes","No","No",""],
+      ["Khanna","MOHANPUR 2","Yes","Needs Whitewash",6,"Yes","Yes","No","No",""],
+      ["Khanna","MOHNAPUR 1","Yes","Needs Whitewash",1,"Yes","Yes","No","No",""],
+      ["Khanna","RAIPUR RAJPUTAN","No","Whitewash Not Needed",0,"Yes","Yes","No","No",""],
+      ["Khanna","Daumajra","Yes","Needs Whitewash",0,"No","Yes","No","No",""],
+      ["Khanna","BHattian 1","Yes","Needs Whitewash",10,"Yes","Yes","No","No",""],
+      ["Khanna","BHattian 2","Yes","Needs Whitewash",10,"Yes","Yes","No","No",""],
+      ["Khanna","ALOUR 1","Yes","Needs Whitewash",9,"Yes","No","No","No",""],
+      ["Khanna","ALOUR 2","Yes","Needs Whitewash",1,"Yes","Yes","No","No",""],
+      ["Khanna","ALIPUR","Yes","Needs Whitewash",7,"No","Yes","No","No",""],
+      ["Khanna","BHADLA NEECHA 2","Yes","Needs Whitewash",4,"Yes","No","No","No",""],
+      ["Khanna","BHADLA NEECHA 1","Yes","Needs Whitewash",4,"Yes","No","No","No",""],
+      ["Khanna","BHADLA UCHA","Yes","Needs Whitewash",4,"No","Yes","No","No",""],
+      ["Khanna","BOOTHGARH","Yes","Needs Whitewash",8,"Yes","Yes","No","No",""],
+      ["Khanna","BULEPUR","Yes","Needs Whitewash",0,"No","No","No","No",""],
+      ["Khanna","GALWADDI","Yes","Needs Whitewash",2,"Yes","Yes","No","No",""],
+      ["Khanna","GOH 1","Yes","Whitewash Not Needed",6,"Yes","Yes","No","No",""],
+      ["Khanna","GOH 2","Yes","Whitewash Not Needed",2,"No","Yes","No","No",""],
+      ["Khanna","GOH 3","Yes","Needs Whitewash",2,"No","Yes","No","No",""]
+    ].map(([tehsil, centre, premises, whitewash, chairs, table, water, banners, decor, remarks]) => ({
+      tehsil: (tehsil || 'Unspecified').trim() || 'Unspecified',
+      centre, premises: premises === 'Yes' ? 'Clean' : (premises === 'No' ? 'Needs Cleaning' : premises), whitewash,
+      chairs: Number(chairs) || 0, table: table || 'No', water: water || 'Unknown', banners: banners || 'No', decor: decor || 'No', remarks: remarks || ''
+    }));
+
+    const fmtPct = v => `${Math.round((v || 0) * 100)}%`;
+    const byId = id => document.getElementById(id);
+    const tehsilFilter = byId('tehsilFilter');
+    const whitewashFilter = byId('whitewashFilter');
+    const capacityFilter = byId('capacityFilter');
+
+    const unique = (arr) => ['All', ...Array.from(new Set(arr)).filter(Boolean).sort((a,b)=>a.localeCompare(b))];
+    function fillSelect(el, values){ el.innerHTML = values.map(v => `<option value="${v}">${v}</option>`).join(''); }
+    fillSelect(tehsilFilter, unique(rawData.map(d => d.tehsil)));
+    fillSelect(whitewashFilter, unique(rawData.map(d => d.whitewash)));
+    fillSelect(capacityFilter, ['All','Low Capacity (<5 chairs)','Adequate (≥5 chairs)']);
+
+    const chartColors = { blue:'#1f6aa5', teal:'#2e8b8b', green:'#2e7d32', amber:'#d28a11', red:'#c62828', light:'#dbe9f4' };
+    let tehsilChart, whitewashChart, seatingChart, readinessChart;
+
+    function getFilteredData(){
+      return rawData.filter(d => {
+        const tehsilOk = tehsilFilter.value === 'All' || d.tehsil === tehsilFilter.value;
+        const whitewashOk = whitewashFilter.value === 'All' || d.whitewash === whitewashFilter.value;
+        const capacityOk = capacityFilter.value === 'All' || (capacityFilter.value.startsWith('Low') ? d.chairs < 5 : d.chairs >= 5);
+        return tehsilOk && whitewashOk && capacityOk;
+      });
+    }
+
+    function aggregateTehsil(data){
+      const map = new Map();
+      data.forEach(d => {
+        if(!map.has(d.tehsil)) map.set(d.tehsil, {count:0, needs:0, done:0});
+        const row = map.get(d.tehsil); row.count += 1;
+        if ((d.whitewash || '').toLowerCase().includes('need')) row.needs += 1; else row.done += 1;
+      });
+      const labels = Array.from(map.keys());
+      return { labels, counts: labels.map(l => map.get(l).count), needs: labels.map(l => map.get(l).needs), done: labels.map(l => map.get(l).done) };
+    }
+
+    function seatingBins(data){
+      const bins = [0,1,2,3,4,5,6,7,8,9,10,'11+'];
+      const counts = new Array(bins.length).fill(0);
+      data.forEach(d => {
+        const idx = d.chairs >= 11 ? bins.length - 1 : Math.max(0, Math.min(10, d.chairs));
+        counts[idx] += 1;
+      });
+      return { labels: bins.map(String), counts };
+    }
+
+    function readinessBreakup(data){
+      let ready = 0, missingTable = 0, missingWater = 0, missingBoth = 0;
+      data.forEach(d => {
+        const t = d.table === 'Yes', w = d.water === 'Yes';
+        if (t && w) ready++; else if (!t && !w) missingBoth++; else if (!t) missingTable++; else missingWater++;
+      });
+      return { labels:['Ready','Missing Table','Missing Water','Missing Both'], values:[ready, missingTable, missingWater, missingBoth] };
+    }
+
+    function updateKPIs(data){
+      const total = data.length || 1;
+      const clean = data.filter(d => d.premises === 'Clean').length;
+      const water = data.filter(d => d.water === 'Yes').length;
+      const branding = data.filter(d => d.banners === 'Yes').length;
+      byId('kpiTotal').textContent = data.length;
+      byId('kpiCoverage').textContent = `${data.filter(d => d.chairs < 5).length} low-capacity centres flagged`;
+      byId('kpiHygiene').textContent = fmtPct(clean / total);
+      byId('kpiWater').textContent = fmtPct(water / total);
+      byId('kpiBranding').textContent = fmtPct(branding / total);
+      const avg = data.reduce((s,d)=>s+d.chairs,0) / total;
+      byId('capacitySummary').textContent = `Average seating capacity: ${avg.toFixed(1)} chairs per centre. Low-capacity centres are defined here as fewer than 5 chairs.`;
+    }
+
+    function renderCritical(data){
+      const critical = data.filter(d => d.water === 'No' || d.premises === 'Needs Cleaning')
+        .sort((a,b) => (a.water === 'No' ? -1 : 1) - (b.water === 'No' ? -1 : 1) || a.tehsil.localeCompare(b.tehsil));
+      byId('criticalTable').innerHTML = critical.map(d => `
+        <tr>
+          <td><strong>${d.centre}</strong></td>
+          <td>${d.tehsil}</td>
+          <td><span class="pill ${d.premises === 'Clean' ? 'yes' : 'critical'}">${d.premises}</span></td>
+          <td><span class="pill ${d.water === 'Yes' ? 'yes' : 'critical'}">${d.water || 'Unknown'}</span></td>
+          <td><span class="pill ${String(d.whitewash).includes('Need') ? 'warn' : 'yes'}">${d.whitewash}</span></td>
+          <td class="remark">${d.remarks || '—'}</td>
+        </tr>`).join('') || '<tr><td colspan="6">No critical centres in the current filter view.</td></tr>';
+
+      const total = data.length || 1;
+      const lowCapacity = data.filter(d => d.chairs < 5).length;
+      const noWater = data.filter(d => d.water === 'No').length;
+      const needsCleaning = data.filter(d => d.premises === 'Needs Cleaning').length;
+      const needWhitewash = data.filter(d => String(d.whitewash).toLowerCase().includes('need')).length;
+      const ready = data.filter(d => d.table === 'Yes' && d.water === 'Yes').length;
+      byId('actionSummary').innerHTML = [
+        ['Critical centres', `${critical.length} / ${data.length}`, 'Water unavailable or premises need cleaning', 'critical'],
+        ['Low seating capacity', fmtPct(lowCapacity / total), `${lowCapacity} centres have fewer than 5 chairs`, 'warn'],
+        ['Whitewash gap', fmtPct(needWhitewash / total), `${needWhitewash} centres need whitewash support`, 'warn'],
+        ['Water gap', fmtPct(noWater / total), `${noWater} centres lack safe drinking water`, 'critical'],
+        ['Registration ready', fmtPct(ready / total), `${ready} centres have both table and safe water`, 'yes'],
+        ['Cleaning gap', fmtPct(needsCleaning / total), `${needsCleaning} centres need cleaning intervention`, 'critical']
+      ].map(([label, value, note, cls]) => `<div class="metric-row"><div><div class="kpi-label" style="margin-bottom:.3rem">${label}</div><div class="hint">${note}</div></div><div style="text-align:right"><strong>${value}</strong><div class="pill ${cls}" style="margin-top:.35rem">Priority</div></div></div>`).join('');
+    }
+
+    function createOrUpdateCharts(data){
+      const t = aggregateTehsil(data);
+      const s = seatingBins(data);
+      const r = readinessBreakup(data);
+
+      const commonOpts = { responsive:true, maintainAspectRatio:false, plugins:{ legend:{ labels:{ boxWidth:12, usePointStyle:true } } }, scales:{ y:{ beginAtZero:true, ticks:{ precision:0 } } } };
+
+      if (tehsilChart) tehsilChart.destroy();
+      tehsilChart = new Chart(byId('tehsilChart'), {
+        type:'bar',
+        data:{ labels:t.labels, datasets:[{ label:'Centres', data:t.counts, backgroundColor: chartColors.blue, borderRadius:8 }] },
+        options:{ ...commonOpts, plugins:{ legend:{ display:false } } }
+      });
+
+      if (whitewashChart) whitewashChart.destroy();
+      whitewashChart = new Chart(byId('whitewashChart'), {
+        type:'bar',
+        data:{ labels:t.labels, datasets:[
+          { label:'Needs Whitewash', data:t.needs, backgroundColor: chartColors.red, borderRadius:8 },
+          { label:'Done / Not Needed', data:t.done, backgroundColor: chartColors.green, borderRadius:8 }
+        ]},
+        options:{ ...commonOpts, scales:{ x:{ stacked:true }, y:{ stacked:true, beginAtZero:true, ticks:{ precision:0 } } } }
+      });
+
+      if (seatingChart) seatingChart.destroy();
+      seatingChart = new Chart(byId('seatingChart'), {
+        type:'bar',
+        data:{ labels:s.labels, datasets:[{ label:'Centres', data:s.counts, backgroundColor: '#64a8a8', borderRadius:8 }] },
+        options:{ ...commonOpts, plugins:{ legend:{ display:false } }, scales:{ y:{ beginAtZero:true, ticks:{ precision:0 } }, x:{ title:{ display:true, text:'Number of chairs available' } } } }
+      });
+
+      if (readinessChart) readinessChart.destroy();
+      readinessChart = new Chart(byId('readinessChart'), {
+        type:'doughnut',
+        data:{ labels:r.labels, datasets:[{ data:r.values, backgroundColor:[chartColors.green, chartColors.amber, chartColors.blue, chartColors.red], borderWidth:0 }] },
+        options:{ responsive:true, maintainAspectRatio:false, cutout:'62%', plugins:{ legend:{ position:'bottom', labels:{ usePointStyle:true, boxWidth:10 } } } }
+      });
+    }
+
+    function refresh(){
+      const filtered = getFilteredData();
+      updateKPIs(filtered);
+      createOrUpdateCharts(filtered);
+      renderCritical(filtered);
+    }
+
+    [tehsilFilter, whitewashFilter, capacityFilter].forEach(el => el.addEventListener('change', refresh));
+    refresh();
+  </script>
+</body>
+</html>
